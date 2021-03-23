@@ -70,4 +70,6 @@ if(PX4_TESTING)
 	add_subdirectory(commander_tests)
 endif()
 
+link_libraries(hinj)
+
 px4_add_unit_gtest(SRC mag_calibration_test.cpp LINKLIBS modules__commander)

@@ -76,6 +76,10 @@
 
 #include <uORB/topics/mavlink_log.h>
 
+extern "C" {
+#include <libhinj.h>
+}
+
 typedef enum VEHICLE_MODE_FLAG {
 	VEHICLE_MODE_FLAG_CUSTOM_MODE_ENABLED = 1, /* 0b00000001 Reserved for future use. | */
 	VEHICLE_MODE_FLAG_TEST_ENABLED = 2, /* 0b00000010 system has a test mode enabled. This flag is intended for temporary system tests and should not be used for stable implementations. | */
@@ -753,7 +757,7 @@ Commander::handle_command(const vehicle_command_s &cmd)
 				}
 
 				transition_result_t arming_res = TRANSITION_DENIED;
-
+				hinj_update_mode(10);
 				if (cmd_arms) {
 					if (cmd.from_external) {
 						arming_res = arm(arm_disarm_reason_t::COMMAND_EXTERNAL);

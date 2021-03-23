@@ -114,7 +114,7 @@ if(REPLAY_FILE)
 	add_definitions(-DORB_USE_PUBLISHER_RULES)
 
 	message(STATUS "Building without lockstep for replay")
-	set(ENABLE_LOCKSTEP_SCHEDULER no)
+	set(ENABLE_LOCKSTEP_SCHEDULER yes)
 else()
 	set(ENABLE_LOCKSTEP_SCHEDULER yes)
 endif()

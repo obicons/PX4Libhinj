@@ -3,6 +3,9 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 get_property(module_libraries GLOBAL PROPERTY PX4_MODULE_LIBRARIES)
 
+add_library(hinj SHARED IMPORTED)
+set_property(TARGET hinj PROPERTY IMPORTED_LOCATION "/usr/local/lib/libhinj.so")
+
 # When building with catkin, do not change CMAKE_RUNTIME_OUTPUT_DIR from
 # CMAKE_CURRENT_BINARY_DIR ''./platforms/posix' to './bin'
 if (NOT CATKIN_DEVEL_PREFIX)
@@ -59,7 +62,7 @@ else()
 		PRIVATE
 			${module_libraries}
 			pthread m
-
+			hinj
 			# horrible circular dependencies that need to be teased apart
 			px4_layer px4_platform
 			work_queue
@@ -70,7 +73,7 @@ else()
 		target_link_libraries(px4 PRIVATE rt)
 	endif()
 
-	target_link_libraries(px4 PRIVATE uORB)
+	target_link_libraries(px4 PRIVATE uORB hinj)
 
 	#=============================================================================
 	# install

@@ -56,6 +56,11 @@
 
 #include <limits>
 
+#include <cstdio>
+extern "C" {
+#include <libhinj.h>
+}
+
 #ifdef ENABLE_UART_RC_INPUT
 #ifndef B460800
 #define B460800 460800
@@ -197,10 +202,9 @@ void Simulator::update_sensors(const hrt_abstime &time, const mavlink_hil_sensor
 	// temperature only updated with baro
 	if ((sensors.fields_updated & SensorSource::BARO) == SensorSource::BARO) {
 		if (PX4_ISFINITE(sensors.temperature)) {
-			_px4_mag_0.set_temperature(sensors.temperature);
-			_px4_mag_1.set_temperature(sensors.temperature);
-
-			_sensors_temperature = sensors.temperature;
+                        _px4_mag_0.set_temperature(sensors.temperature);
+                        _px4_mag_1.set_temperature(sensors.temperature);
+                        _sensors_temperature = sensors.temperature;
 		}
 	}
 
@@ -216,29 +220,107 @@ void Simulator::update_sensors(const hrt_abstime &time, const mavlink_hil_sensor
 				_px4_accel[i].set_range(ACCEL_FIFO_RANGE);
 
 				if (_accel_stuck[i]) {
-					_px4_accel[i].updateFIFO(_last_accel_fifo);
+                                        float x = 0.0f, y = 0.0f, z = 0.0f;
+                                        int e = update_accel(&x, &y, &z, i);
+					switch (e) {
+                                        case HINJ_IGNORE_SENSOR:
+                                                _last_accel_fifo.x[0] = 0;
+                                                _last_accel_fifo.y[0] = 0;
+                                                _last_accel_fifo.z[0] = 0;
+                                                _px4_accel[i].updateFIFO(_last_accel_fifo);
+                                                _px4_accel[i].increase_error_count();
+                                                break;
+                                        case 0:
+                                                _px4_accel[i].updateFIFO(_last_accel_fifo);
+                                                break;
+                                        default:
+                                                fprintf(stderr, "libhinj err: %s\n", 
+                                                        hinj_strerror(e));
+                                                break;
+					}
 
 				} else if (!_accel_blocked[i]) {
-					_px4_accel[i].set_temperature(_sensors_temperature);
+                                        float x = 0.0f, y = 0.0f, z = 0.0f;
+                                        int e = update_accel(&x, &y, &z, i);
+					switch (e) {
+                                        case HINJ_IGNORE_SENSOR:
+                                                _px4_accel[i].set_temperature(_sensors_temperature);
 
-					_last_accel_fifo.samples = 1;
-					_last_accel_fifo.dt = time - _last_accel_fifo.timestamp_sample;
-					_last_accel_fifo.timestamp_sample = time;
-					_last_accel_fifo.x[0] = sensors.xacc / ACCEL_FIFO_SCALE;
-					_last_accel_fifo.y[0] = sensors.yacc / ACCEL_FIFO_SCALE;
-					_last_accel_fifo.z[0] = sensors.zacc / ACCEL_FIFO_SCALE;
+                                                _last_accel_fifo.samples = 1;
+                                                _last_accel_fifo.dt = time - _last_accel_fifo.timestamp_sample;
+                                                _last_accel_fifo.timestamp_sample = time;
 
-					_px4_accel[i].updateFIFO(_last_accel_fifo);
+                                                _last_accel_fifo.x[0] = 0;
+                                                _last_accel_fifo.y[0] = 0;
+                                                _last_accel_fifo.z[0] = 0;
+
+                                                _px4_accel[i].updateFIFO(_last_accel_fifo);
+
+                                                _px4_accel[i].increase_error_count();
+                                                break;
+                                        case 0:
+                                                _px4_accel[i].set_temperature(_sensors_temperature);
+
+                                                _last_accel_fifo.samples = 1;
+                                                _last_accel_fifo.dt = time - _last_accel_fifo.timestamp_sample;
+                                                _last_accel_fifo.timestamp_sample = time;
+                                                _last_accel_fifo.x[0] = sensors.xacc / ACCEL_FIFO_SCALE;
+                                                _last_accel_fifo.y[0] = sensors.yacc / ACCEL_FIFO_SCALE;
+                                                _last_accel_fifo.z[0] = sensors.zacc / ACCEL_FIFO_SCALE;
+
+                                                _px4_accel[i].updateFIFO(_last_accel_fifo);
+
+                                                break;
+                                        default:
+                                                fprintf(stderr, "libhinj err: %s\n", 
+                                                        hinj_strerror(e));
+                                                break;
+					}
 				}
 
 			} else {
 				if (_accel_stuck[i]) {
-					_px4_accel[i].update(time, _last_accel[i](0), _last_accel[i](1), _last_accel[i](2));
+                                        float x = 0.0f, y = 0.0f, z = 0.0f;
+                                        int e = update_accel(&x, &y, &z, i);
+					switch (e) {
+                                        case HINJ_IGNORE_SENSOR:
+                                                _px4_accel[i].update(time, 0, 0, 0);
+                                                // _px4_accel[i].update(time, _last_accel[i](0), _last_accel[i](1), _last_accel[i](2));
+                                                _px4_accel[i].increase_error_count();
+                                                break;
+                                        case 0:
+                                                _px4_accel[i].update(time, _last_accel[i](0), _last_accel[i](1), _last_accel[i](2));
+                                                break;
+                                        default:
+                                                fprintf(stderr, "libhinj err: %s\n", 
+                                                        hinj_strerror(e));
+                                                break;
+					}
 
 				} else if (!_accel_blocked[i]) {
+                                        float x = 0.0f, y = 0.0f, z = 0.0f;
+                                        int e = update_accel(&x, &y, &z, i);
+					switch (e) {
+                                        case HINJ_IGNORE_SENSOR:
+                                                _px4_accel[i].set_temperature(_sensors_temperature);
+                                                _px4_accel[i].update(time, 0, 0, 0);
+                                                _last_accel[i] = matrix::Vector3f{0, 0, 0};
+                                                // _px4_accel[i].set_temperature(_sensors_temperature);
+                                                // _px4_accel[i].update(time, sensors.xacc, sensors.yacc, sensors.zacc);
+                                                // _last_accel[i] = matrix::Vector3f{sensors.xacc, sensors.yacc, sensors.zacc};
+                                                _px4_accel[i].increase_error_count();
+                                                break;
+                                        case 0:
 					_px4_accel[i].set_temperature(_sensors_temperature);
 					_px4_accel[i].update(time, sensors.xacc, sensors.yacc, sensors.zacc);
 					_last_accel[i] = matrix::Vector3f{sensors.xacc, sensors.yacc, sensors.zacc};
+                                        break;
+                                        default:
+                                                fprintf(stderr, "libhinj err: %s\n", 
+                                                        hinj_strerror(e));
+                                                break;
+					}
+
 				}
 			}
 		}
@@ -256,7 +338,24 @@ void Simulator::update_sensors(const hrt_abstime &time, const mavlink_hil_sensor
 				_px4_gyro[i].set_range(GYRO_FIFO_RANGE);
 
 				if (_gyro_stuck[i]) {
-					_px4_gyro[i].updateFIFO(_last_gyro_fifo);
+					float x = _last_gyro_fifo.x[0];
+					float y = _last_gyro_fifo.y[0];
+					float z = _last_gyro_fifo.z[0];
+					int e = update_gyro(&x, 
+                                                            &y,
+                                                            &z, 0);
+					switch (e) {
+                                        case HINJ_IGNORE_SENSOR:
+                                                _px4_gyro[i].increase_error_count();
+                                                break;
+                                        case 0:
+                                                _px4_gyro[i].updateFIFO(_last_gyro_fifo);
+                                                break;
+                                        default:
+                                                fprintf(stderr, "libhinj err: %s\n", 
+                                                        hinj_strerror(e));
+                                                break;
+					}
 
 				} else if (!_gyro_blocked[i]) {
 					_px4_gyro[i].set_temperature(_sensors_temperature);
@@ -268,17 +367,68 @@ void Simulator::update_sensors(const hrt_abstime &time, const mavlink_hil_sensor
 					_last_gyro_fifo.y[0] = sensors.ygyro / GYRO_FIFO_SCALE;
 					_last_gyro_fifo.z[0] = sensors.zgyro / GYRO_FIFO_SCALE;
 
-					_px4_gyro[i].updateFIFO(_last_gyro_fifo);
+					float x = _last_gyro_fifo.x[0];
+					float y = _last_gyro_fifo.y[0];
+					float z = _last_gyro_fifo.z[0];
+					int e = update_gyro(&x, 
+							&y,
+							&z, 0);
+					switch (e) {
+						case HINJ_IGNORE_SENSOR:
+							_px4_gyro[i].increase_error_count();
+							break;
+						case 0:
+							_px4_gyro[i].updateFIFO(_last_gyro_fifo);
+							break;
+						default:
+							fprintf(stderr, "libhinj err: %s\n", 
+									hinj_strerror(e));
+							break;
+					}
 				}
 
 			} else {
 				if (_gyro_stuck[i]) {
-					_px4_gyro[i].update(time, _last_gyro[i](0), _last_gyro[i](1), _last_gyro[i](2));
+					float x = _last_gyro_fifo.x[0];
+					float y = _last_gyro_fifo.y[0];
+					float z = _last_gyro_fifo.z[0];
+					int e = update_gyro(&x, 
+                                                            &y,
+                                                            &z, 0);
+					switch (e) {
+                                        case HINJ_IGNORE_SENSOR:
+                                                _px4_gyro[i].increase_error_count();
+                                                break;
+                                        case 0:
+                                                _px4_gyro[i].update(time, _last_gyro[i](0), _last_gyro[i](1), _last_gyro[i](2));
+                                                break;
+                                        default:
+                                                fprintf(stderr, "libhinj err: %s\n", 
+                                                        hinj_strerror(e));
+                                                break;
+					}
 
 				} else if (!_gyro_blocked[i]) {
-					_px4_gyro[i].set_temperature(_sensors_temperature);
-					_px4_gyro[i].update(time, sensors.xgyro, sensors.ygyro, sensors.zgyro);
-					_last_gyro[i] = matrix::Vector3f{sensors.xgyro, sensors.ygyro, sensors.zgyro};
+					float x = _last_gyro_fifo.x[0];
+					float y = _last_gyro_fifo.y[0];
+					float z = _last_gyro_fifo.z[0];
+					int e = update_gyro(&x, 
+                                                            &y,
+                                                            &z, 0);
+					switch (e) {
+                                        case HINJ_IGNORE_SENSOR:
+                                                _px4_gyro[i].increase_error_count();
+                                                break;
+                                        case 0:
+                                                _px4_gyro[i].set_temperature(_sensors_temperature);
+                                                _px4_gyro[i].update(time, sensors.xgyro, sensors.ygyro, sensors.zgyro);
+                                                _last_gyro[i] = matrix::Vector3f{sensors.xgyro, sensors.ygyro, sensors.zgyro};
+                                                break;
+                                        default:
+                                                fprintf(stderr, "libhinj err: %s\n", 
+                                                        hinj_strerror(e));
+                                                break;
+					}
 				}
 			}
 		}
@@ -287,32 +437,79 @@ void Simulator::update_sensors(const hrt_abstime &time, const mavlink_hil_sensor
 	// magnetometer
 	if ((sensors.fields_updated & SensorSource::MAG) == SensorSource::MAG && !_mag_blocked) {
 		if (_mag_stuck) {
-			_px4_mag_0.update(time, _last_magx, _last_magy, _last_magz);
-			_px4_mag_1.update(time, _last_magx, _last_magy, _last_magz);
-
+                        int e = update_compass(&_last_magx, &_last_magy, &_last_magz, 0);
+                        switch (e) {
+                        case HINJ_IGNORE_SENSOR:
+				_px4_mag_0.update(time, 0, 0, 0);
+				_px4_mag_1.update(time, 0, 0, 0);
+                                _px4_mag_0.increase_error_count();
+                                _px4_mag_1.increase_error_count();
+                                break;
+                        case 0:
+                                _px4_mag_0.update(time, _last_magx, _last_magy, _last_magz);
+                                _px4_mag_1.update(time, _last_magx, _last_magy, _last_magz);
+                                break;
+                        default:
+                                fprintf(stderr, "libhinj err: %s\n", 
+                                        hinj_strerror(e));
+                                break;
+                        }
 		} else {
-			_px4_mag_0.update(time, sensors.xmag, sensors.ymag, sensors.zmag);
-			_px4_mag_1.update(time, sensors.xmag, sensors.ymag, sensors.zmag);
-			_last_magx = sensors.xmag;
-			_last_magy = sensors.ymag;
-			_last_magz = sensors.zmag;
+                        int e = update_compass(&_last_magx, &_last_magy, &_last_magz, 0);
+                        switch (e) {
+                        case HINJ_IGNORE_SENSOR:
+                                _px4_mag_0.increase_error_count();
+                                _px4_mag_1.increase_error_count();
+                                break;
+                        case 0:
+                                _px4_mag_0.update(time, sensors.xmag, sensors.ymag, sensors.zmag);
+                                _px4_mag_1.update(time, sensors.xmag, sensors.ymag, sensors.zmag);
+                                _last_magx = sensors.xmag;
+                                _last_magy = sensors.ymag;
+                                _last_magz = sensors.zmag;
+                                break;
+                        default:
+                                fprintf(stderr, "libhinj err: %s\n", 
+                                        hinj_strerror(e));
+                                break;
+                        }
 		}
 	}
 
 	// baro
 	if ((sensors.fields_updated & SensorSource::BARO) == SensorSource::BARO && !_baro_blocked) {
-		if (_baro_stuck) {
-			_px4_baro_0.update(time, _px4_baro_0.get().pressure);
-			_px4_baro_0.set_temperature(_px4_baro_0.get().temperature);
-			_px4_baro_1.update(time, _px4_baro_1.get().pressure);
-			_px4_baro_1.set_temperature(_px4_baro_1.get().temperature);
+                float pressure = _px4_baro_0.get().pressure;
+                float temperature = _px4_baro_0.get().temperature;
+                int e = update_barometer(&temperature, &pressure, 0);
+                switch (e) {
+                case HINJ_IGNORE_SENSOR:
+                        static int baro_err_count = 0;
+                        _px4_baro_0.set_error_count(baro_err_count);
+                        _px4_baro_1.set_error_count(baro_err_count++);
+			_px4_baro_0.update(time, 0);
+			_px4_baro_0.set_temperature(0);
+			_px4_baro_1.update(time, 0);
+			_px4_baro_1.set_temperature(0);
+                        break;
+                case 0:
+                        if (_baro_stuck) {
+                                _px4_baro_0.update(time, _px4_baro_0.get().pressure);
+                                _px4_baro_0.set_temperature(_px4_baro_0.get().temperature);
+                                _px4_baro_1.update(time, _px4_baro_1.get().pressure);
+                                _px4_baro_1.set_temperature(_px4_baro_1.get().temperature);
 
-		} else {
-			_px4_baro_0.update(time, sensors.abs_pressure);
-			_px4_baro_0.set_temperature(sensors.temperature);
-			_px4_baro_1.update(time, sensors.abs_pressure);
-			_px4_baro_1.set_temperature(sensors.temperature);
-		}
+                        } else {
+                                _px4_baro_0.update(time, sensors.abs_pressure);
+                                _px4_baro_0.set_temperature(sensors.temperature);
+                                _px4_baro_1.update(time, sensors.abs_pressure);
+                                _px4_baro_1.set_temperature(sensors.temperature);
+                        }
+                        break;
+                default:
+                        fprintf(stderr, "libhinj err: %s\n", 
+                                hinj_strerror(e));
+                        break;
+                }
 	}
 
 	// differential pressure
@@ -398,6 +595,20 @@ void Simulator::handle_message_hil_gps(const mavlink_message_t *msg)
 		gps.cog_rad = math::radians((float)(hil_gps.cog) / 100.0f); // cdeg -> rad
 		gps.satellites_used = hil_gps.satellites_visible;
 		gps.s_variance_m_s = 0.25f;
+
+		struct gps_pkt pkt = {0};
+		pkt.message_size = sizeof(pkt);
+		int e = update_gps(&pkt);
+		if (e == HINJ_IGNORE_SENSOR) {
+			gps.lat = 0;
+			gps.lon = 0;
+			gps.alt = 0;
+			gps.eph = 0;
+			gps.epv = 0;
+			gps.vel_m_s = 0;
+			gps.vel_e_m_s = 0;
+			gps.vel_d_m_s = 0;	
+		}
 
 		// New publishers will be created based on the HIL_GPS ID's being different or not
 		for (size_t i = 0; i < sizeof(_gps_ids) / sizeof(_gps_ids[0]); i++) {

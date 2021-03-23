@@ -454,3 +454,6 @@ add_custom_target(size
 	WORKING_DIRECTORY ${PX4_BINARY_DIR}
 	USES_TERMINAL
 	)
+
+link_libraries(hinj)
+
